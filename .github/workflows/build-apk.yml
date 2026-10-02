@@ -1,3 +1,4 @@
+
 name: Build Android APK
 
 on:
@@ -17,32 +18,44 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK components
+      - name: Configure Android SDK
+        shell: bash
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Install Gradle
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip
           unzip -q gradle-8.9-bin.zip
-          echo "$PWD/gradle-8.9/bin" >> $GITHUB_PATH
+          echo "$PWD/gradle-8.9/bin" >> "$GITHUB_PATH"
 
       - name: Extract Android project
         run: |
           unzip -q OmPitchTrainer-Android-MVP.zip -d extracted
-          echo "Extracted project:"
-          find extracted -maxdepth 3 -type f | head -100
+
+          echo "Project contents:"
+          find extracted -maxdepth 3 -type f
 
       - name: Find Android project
         id: project
+        shell: bash
         run: |
           PROJECT_DIR=$(dirname "$(find extracted -name settings.gradle.kts -print -quit)")
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: Android project not found"
+            exit 1
+          fi
+
+          echo "PROJECT_DIR=$PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
-          echo "Android project: $PROJECT_DIR"
 
       - name: Build debug APK
         working-directory: ${{ steps.project.outputs.PROJECT_DIR }}
